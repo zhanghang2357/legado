@@ -59,7 +59,7 @@ const paragraphRef = ref();
 const scrollToReadedLength = (length) => {
   if (length === 0) return;
   let paragraphIndex = chapterPos.value.findIndex(
-    (wordCount) => wordCount >= length
+    (wordCount) => wordCount >= length,
   );
   if (paragraphIndex === -1) return;
   nextTick(() => {
@@ -81,14 +81,14 @@ onMounted(() => {
           emit(
             "readedLengthChange",
             props.chapterIndex,
-            parseInt(target.dataset.chapterpos)
+            parseInt(target.dataset.chapterpos),
           );
         }
       }
     },
     {
       rootMargin: `0px 0px -${window.innerHeight - 24}px 0px`,
-    }
+    },
   );
   intersectionObserver.observe(titleRef.value);
   paragraphRef.value.forEach((element) => {
@@ -105,14 +105,18 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 .title {
   margin-bottom: 57px;
-  font: 24px / 32px PingFangSC-Regular, HelveticaNeue-Light,
-    "Helvetica Neue Light", "Microsoft YaHei", sans-serif;
+  font:
+    24px / 32px PingFangSC-Regular,
+    HelveticaNeue-Light,
+    "Helvetica Neue Light",
+    "Microsoft YaHei",
+    sans-serif;
 }
 
 p {
   display: block;
   word-wrap: break-word;
-  word-break: break-all;
+  // word-break: break-all;
 
   letter-spacing: calc(v-bind("props.spacing.letter") * 1em);
   line-height: calc(1 + v-bind("props.spacing.line"));

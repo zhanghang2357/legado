@@ -167,10 +167,11 @@ object AudioPlay {
             Coroutine.async {
                 appDb.bookChapterDao.getChapter(book.bookUrl, book.durChapterIndex)?.let {
                     book.durChapterTitle = it.getDisplayTitle(
-                        ContentProcessor.get(book.name, book.origin).getTitleReplaceRules()
+                        ContentProcessor.get(book.name, book.origin).getTitleReplaceRules(),
+                        book.getUseReplaceRule()
                     )
                 }
-                book.save()
+                book.update()
             }
         }
     }

@@ -9,11 +9,14 @@ import io.legado.app.api.controller.ReplaceRuleController
 import io.legado.app.api.controller.RssSourceController
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.service.WebService
-import io.legado.app.utils.*
+import io.legado.app.utils.GSON
 import io.legado.app.web.utils.AssetsWeb
+import kotlinx.coroutines.runBlocking
 import okio.Pipe
 import okio.buffer
-import java.io.*
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import kotlin.collections.set
 
 class HttpServer(port: Int) : NanoHTTPD(port) {
     private val assetsWeb = AssetsWeb("web")
@@ -41,22 +44,24 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
                     session.parseBody(files)
                     val postData = files["postData"]
 
-                    returnData = when (uri) {
-                        "/saveBookSource" -> BookSourceController.saveSource(postData)
-                        "/saveBookSources" -> BookSourceController.saveSources(postData)
-                        "/deleteBookSources" -> BookSourceController.deleteSources(postData)
-                        "/saveBook" -> BookController.saveBook(postData)
-                        "/deleteBook" -> BookController.deleteBook(postData)
-                        "/saveBookProgress" -> BookController.saveBookProgress(postData)
-                        "/addLocalBook" -> BookController.addLocalBook(session.parameters)
-                        "/saveReadConfig" -> BookController.saveWebReadConfig(postData)
-                        "/saveRssSource" -> RssSourceController.saveSource(postData)
-                        "/saveRssSources" -> RssSourceController.saveSources(postData)
-                        "/deleteRssSources" -> RssSourceController.deleteSources(postData)
-                        "/saveReplaceRule" -> ReplaceRuleController.saveRule(postData)
-                        "/deleteReplaceRule" -> ReplaceRuleController.delete(postData)
-                        "/testReplaceRule" -> ReplaceRuleController.testRule(postData)
-                        else -> null
+                    returnData = runBlocking {
+                        when (uri) {
+                            "/saveBookSource" -> BookSourceController.saveSource(postData)
+                            "/saveBookSources" -> BookSourceController.saveSources(postData)
+                            "/deleteBookSources" -> BookSourceController.deleteSources(postData)
+                            "/saveBook" -> BookController.saveBook(postData)
+                            "/deleteBook" -> BookController.deleteBook(postData)
+                            "/saveBookProgress" -> BookController.saveBookProgress(postData)
+                            "/addLocalBook" -> BookController.addLocalBook(session.parameters)
+                            "/saveReadConfig" -> BookController.saveWebReadConfig(postData)
+                            "/saveRssSource" -> RssSourceController.saveSource(postData)
+                            "/saveRssSources" -> RssSourceController.saveSources(postData)
+                            "/deleteRssSources" -> RssSourceController.deleteSources(postData)
+                            "/saveReplaceRule" -> ReplaceRuleController.saveRule(postData)
+                            "/deleteReplaceRule" -> ReplaceRuleController.delete(postData)
+                            "/testReplaceRule" -> ReplaceRuleController.testRule(postData)
+                            else -> null
+                        }
                     }
                 }
 
@@ -106,10 +111,8 @@ class HttpServer(port: Int) : NanoHTTPD(port) {
                 if (data is List<*> && data.size > 3000) {
                     val pipe = Pipe(16 * 1024)
                     Coroutine.async {
-                        pipe.sink.buffer().outputStream().use { out ->
-                            BufferedWriter(OutputStreamWriter(out, "UTF-8")).use {
-                                GSON.toJson(returnData, it)
-                            }
+                        pipe.sink.buffer().outputStream().bufferedWriter(Charsets.UTF_8).use {
+                            GSON.toJson(returnData, it)
                         }
                     }
                     newChunkedResponse(

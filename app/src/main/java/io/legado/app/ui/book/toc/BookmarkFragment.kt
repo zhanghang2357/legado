@@ -5,8 +5,10 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import io.legado.app.R
 import io.legado.app.base.VMBaseFragment
+import io.legado.app.constant.AppLog
 import io.legado.app.data.appDb
 import io.legado.app.data.entities.Bookmark
 import io.legado.app.databinding.FragmentBookmarkBinding
@@ -18,6 +20,9 @@ import io.legado.app.utils.setEdgeEffectColor
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -49,11 +54,13 @@ class BookmarkFragment : VMBaseFragment<TocViewModel>(R.layout.fragment_bookmark
 
     override fun upBookmark(searchKey: String?) {
         val book = viewModel.bookData.value ?: return
-        launch {
+        lifecycleScope.launch {
             when {
                 searchKey.isNullOrBlank() -> appDb.bookmarkDao.flowByBook(book.name, book.author)
                 else -> appDb.bookmarkDao.flowSearch(book.name, book.author, searchKey)
-            }.collect {
+            }.catch {
+                AppLog.put("目录界面获取书签数据失败\n${it.localizedMessage}", it)
+            }.flowOn(IO).collect {
                 adapter.setItems(it)
                 var scrollPos = 0
                 withContext(Dispatchers.Default) {

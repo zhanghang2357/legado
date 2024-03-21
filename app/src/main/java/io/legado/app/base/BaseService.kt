@@ -4,23 +4,25 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.annotation.CallSuper
 import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.lifecycleScope
 import io.legado.app.R
 import io.legado.app.help.LifecycleHelp
 import io.legado.app.help.coroutine.Coroutine
 import io.legado.app.lib.permission.Permissions
 import io.legado.app.lib.permission.PermissionsCompat
+import io.legado.app.utils.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlin.coroutines.CoroutineContext
 
-abstract class BaseService : LifecycleService(), CoroutineScope by MainScope() {
+abstract class BaseService : LifecycleService() {
+
+    private val simpleName = this::class.simpleName.toString()
 
     fun <T> execute(
-        scope: CoroutineScope = this,
+        scope: CoroutineScope = lifecycleScope,
         context: CoroutineContext = Dispatchers.IO,
         start: CoroutineStart = CoroutineStart.DEFAULT,
         executeContext: CoroutineContext = Dispatchers.Main,
@@ -32,11 +34,20 @@ abstract class BaseService : LifecycleService(), CoroutineScope by MainScope() {
         super.onCreate()
         LifecycleHelp.onServiceCreate(this)
         checkNotificationPermission()
-        upNotification()
+    }
+
+    @CallSuper
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        LogUtils.d(simpleName) {
+            "onStartCommand $intent ${intent?.toUri(0)}"
+        }
+        startForegroundNotification()
+        return super.onStartCommand(intent, flags, startId)
     }
 
     @CallSuper
     override fun onTaskRemoved(rootIntent: Intent?) {
+        LogUtils.d(simpleName, "onTaskRemoved")
         super.onTaskRemoved(rootIntent)
         stopSelf()
     }
@@ -49,14 +60,13 @@ abstract class BaseService : LifecycleService(), CoroutineScope by MainScope() {
     @CallSuper
     override fun onDestroy() {
         super.onDestroy()
-        cancel()
         LifecycleHelp.onServiceDestroy(this)
     }
 
     /**
-     * 更新通知
+     * 开启前台服务并发送通知
      */
-    open fun upNotification() {
+    open fun startForegroundNotification() {
 
     }
 
@@ -68,8 +78,8 @@ abstract class BaseService : LifecycleService(), CoroutineScope by MainScope() {
             .addPermissions(Permissions.POST_NOTIFICATIONS)
             .rationale(R.string.notification_permission_rationale)
             .onGranted {
-                if (isActive) {
-                    upNotification()
+                if (lifecycleScope.isActive) {
+                    startForegroundNotification()
                 }
             }
             .request()

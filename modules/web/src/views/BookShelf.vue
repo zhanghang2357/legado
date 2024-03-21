@@ -29,7 +29,7 @@
                   readingRecent.name,
                   readingRecent.author,
                   readingRecent.chapterIndex,
-                  readingRecent.chapterPos
+                  readingRecent.chapterPos,
                 )
               "
               :class="{ 'no-point': readingRecent.url == '' }"
@@ -98,12 +98,12 @@ const readingRecent = ref({
   chapterPos: 0,
 });
 const shelfWrapper = ref(null);
-const { showLoading, closeLoading, loadingWrapper } = useLoading(
+const { showLoading, closeLoading, loadingWrapper, isLoading } = useLoading(
   shelfWrapper,
-  "正在获取书籍信息"
+  "正在获取书籍信息",
 );
 
-const books = ref([]);
+const books = shallowRef([]);
 
 const search = ref("");
 const isSearching = ref(false);
@@ -131,9 +131,13 @@ const searchBook = () => {
   API.search(
     search.value,
     (data) => {
+      if (isLoading) {
+        closeLoading();
+      }
       try {
         store.setSearchBooks(JSON.parse(data));
-        store.searchBooks.forEach((item) => books.value.push(item));
+        books.value = store.searchBooks
+        //store.searchBooks.forEach((item) => books.value.push(item));
       } catch (e) {
         ElMessage.error("后端数据错误");
         throw e;
@@ -144,7 +148,7 @@ const searchBook = () => {
       if (books.value.length == 0) {
         ElMessage.info("搜索结果为空");
       }
-    }
+    },
   );
 };
 
@@ -195,7 +199,7 @@ onMounted(() => {
     store
       .saveBookProgress()
       //确保各种网络情况下同步请求先完成
-      .finally(fetchBookShelfData)
+      .finally(fetchBookShelfData),
   );
 });
 const fetchBookShelfData = () => {
@@ -209,7 +213,7 @@ const fetchBookShelfData = () => {
             var x = a["durChapterTime"] || 0;
             var y = b["durChapterTime"] || 0;
             return y - x;
-          })
+          }),
         );
       } else {
         ElMessage.error(response.data.errorMsg);

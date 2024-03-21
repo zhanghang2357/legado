@@ -7,11 +7,12 @@ import android.view.MenuItem
 import android.view.View
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.flowWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.textfield.TextInputLayout
 import io.legado.app.R
 import io.legado.app.base.VMBaseActivity
-import io.legado.app.constant.AppConst
 import io.legado.app.constant.AppConst.charsets
 import io.legado.app.constant.AppLog
 import io.legado.app.constant.EventBus
@@ -34,13 +35,29 @@ import io.legado.app.model.CacheBook
 import io.legado.app.service.ExportBookService
 import io.legado.app.ui.about.AppLogDialog
 import io.legado.app.ui.file.HandleFileContract
-import io.legado.app.utils.*
+import io.legado.app.utils.ACache
+import io.legado.app.utils.FileDoc
+import io.legado.app.utils.applyTint
+import io.legado.app.utils.checkWrite
+import io.legado.app.utils.cnCompare
+import io.legado.app.utils.enableCustomExport
+import io.legado.app.utils.isContentScheme
+import io.legado.app.utils.observeEvent
+import io.legado.app.utils.parseToUri
+import io.legado.app.utils.showDialogFragment
+import io.legado.app.utils.startService
+import io.legado.app.utils.toastOnUi
+import io.legado.app.utils.verificationField
 import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.max
 
 /**
  * cache/download 缓存界面
@@ -88,7 +105,7 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         groupId = intent.getLongExtra("groupId", -1)
-        launch {
+        lifecycleScope.launch {
             binding.titleBar.subtitle = withContext(IO) {
                 appDb.bookGroupDao.getByID(groupId)?.groupName
                     ?: getString(R.string.no_group)
@@ -146,7 +163,7 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
                             this@CacheActivity,
                             book,
                             book.durChapterIndex,
-                            book.totalChapterNum
+                            book.lastChapterIndex
                         )
                     }
                 } else {
@@ -186,15 +203,8 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
 
     private fun initBookData() {
         booksFlowJob?.cancel()
-        booksFlowJob = launch {
-            when (groupId) {
-                AppConst.bookGroupAllId -> appDb.bookDao.flowAll()
-                AppConst.bookGroupLocalId -> appDb.bookDao.flowLocal()
-                AppConst.bookGroupAudioId -> appDb.bookDao.flowAudio()
-                AppConst.bookGroupNetNoneId -> appDb.bookDao.flowNetNoGroup()
-                AppConst.bookGroupLocalNoneId -> appDb.bookDao.flowLocalNoGroup()
-                else -> appDb.bookDao.flowByGroup(groupId)
-            }.conflate().map { books ->
+        booksFlowJob = lifecycleScope.launch {
+            appDb.bookDao.flowByGroup(groupId).map { books ->
                 val booksDownload = books.filter {
                     !it.isAudio
                 }
@@ -205,9 +215,15 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
                     }
 
                     3 -> booksDownload.sortedBy { it.order }
+                    4 -> booksDownload.sortedByDescending {
+                        max(it.latestChapterTime, it.durChapterTime)
+                    }
+
                     else -> booksDownload.sortedByDescending { it.durChapterTime }
                 }
-            }.conflate().collect { books ->
+            }.flowWithLifecycle(lifecycle).catch {
+                AppLog.put("缓存管理界面获取书籍列表失败\n${it.localizedMessage}", it)
+            }.flowOn(IO).conflate().collect { books ->
                 adapter.setItems(books)
                 viewModel.loadCacheFiles(books)
             }
@@ -216,8 +232,10 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
 
     @SuppressLint("NotifyDataSetChanged")
     private fun initGroupData() {
-        launch {
-            appDb.bookGroupDao.flowAll().conflate().collect {
+        lifecycleScope.launch {
+            appDb.bookGroupDao.flowAll().catch {
+                AppLog.put("缓存管理界面获取分组数据失败\n${it.localizedMessage}", it)
+            }.flowOn(IO).conflate().collect {
                 groupList.clear()
                 groupList.addAll(it)
                 adapter.notifyDataSetChanged()
@@ -269,6 +287,8 @@ class CacheActivity : VMBaseActivity<ActivityCacheBookBinding, CacheViewModel>()
     override fun export(position: Int) {
         val path = ACache.get().getAsString(exportBookPathKey)
         if (path.isNullOrEmpty()) {
+            selectExportFolder(position)
+        } else if (FileDoc.fromUri(path.parseToUri(), true).checkWrite() != true) {
             selectExportFolder(position)
         } else if (enableCustomExport()) {// 启用自定义导出 and 导出类型为Epub
             configExportSection(path, position)

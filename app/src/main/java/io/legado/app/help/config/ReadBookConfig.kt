@@ -39,6 +39,7 @@ import java.io.File
 /**
  * 阅读界面配置
  */
+@Suppress("ConstPropertyName")
 @Keep
 object ReadBookConfig {
     const val configFileName = "readConfig.json"
@@ -88,6 +89,9 @@ object ReadBookConfig {
             configList.clear()
             configList.addAll(it)
         }
+        for (i in configList.indices) {
+            configList[i].initColorInt()
+        }
     }
 
     fun initShareConfig() {
@@ -129,6 +133,22 @@ object ReadBookConfig {
                 }
             }
         }
+    }
+
+    fun getAllPicBgStr(): ArrayList<String> {
+        val list = arrayListOf<String>()
+        configList.forEach {
+            if (it.bgType == 2) {
+                list.add(it.bgStr)
+            }
+            if (it.bgTypeNight == 2) {
+                list.add(it.bgStrNight)
+            }
+            if (it.bgTypeEInk == 2) {
+                list.add(it.bgStrEInk)
+            }
+        }
+        return list
     }
 
     fun deleteDur(): Boolean {
@@ -425,6 +445,7 @@ object ReadBookConfig {
                 }
                 if (config.bgType == 2) {
                     val bgName = FileUtils.getName(config.bgStr)
+                    config.bgStr = bgName
                     val bgPath = FileUtils.getPath(appCtx.externalFiles, "bg", bgName)
                     if (!FileUtils.exist(bgPath)) {
                         val bgFile = configDir.getFile(bgName)
@@ -436,6 +457,7 @@ object ReadBookConfig {
                 }
                 if (config.bgTypeNight == 2) {
                     val bgName = FileUtils.getName(config.bgStrNight)
+                    config.bgStrNight = bgName
                     val bgPath = FileUtils.getPath(appCtx.externalFiles, "bg", bgName)
                     if (!FileUtils.exist(bgPath)) {
                         val bgFile = configDir.getFile(bgName)
@@ -447,6 +469,7 @@ object ReadBookConfig {
                 }
                 if (config.bgTypeEInk == 2) {
                     val bgName = FileUtils.getName(config.bgStrEInk)
+                    config.bgStrEInk = bgName
                     val bgPath = FileUtils.getPath(appCtx.externalFiles, "bg", bgName)
                     if (!FileUtils.exist(bgPath)) {
                         val bgFile = configDir.getFile(bgName)
@@ -517,20 +540,40 @@ object ReadBookConfig {
         var footerMode: Int = 0
     ) {
 
+        private var textColorIntEInk = -1
+        private var textColorIntNight = -1
+        private var textColorInt = -1
+
+        fun initColorInt() {
+            textColorIntEInk = Color.parseColor(textColorEInk)
+            textColorIntNight = Color.parseColor(textColorNight)
+            textColorInt = Color.parseColor(textColor)
+        }
+
         fun setCurTextColor(color: Int) {
             when {
-                AppConfig.isEInkMode -> textColorEInk = "#${color.hexString}"
-                AppConfig.isNightTheme -> textColorNight = "#${color.hexString}"
-                else -> textColor = "#${color.hexString}"
+                AppConfig.isEInkMode -> {
+                    textColorEInk = "#${color.hexString}"
+                    textColorIntEInk = color
+                }
+
+                AppConfig.isNightTheme -> {
+                    textColorNight = "#${color.hexString}"
+                    textColorIntNight = color
+                }
+
+                else -> {
+                    textColor = "#${color.hexString}"
+                    textColorInt = color
+                }
             }
-            ChapterProvider.upStyle()
         }
 
         fun curTextColor(): Int {
             return when {
-                AppConfig.isEInkMode -> Color.parseColor(textColorEInk)
-                AppConfig.isNightTheme -> Color.parseColor(textColorNight)
-                else -> Color.parseColor(textColor)
+                AppConfig.isEInkMode -> textColorIntEInk
+                AppConfig.isNightTheme -> textColorIntNight
+                else -> textColorInt
             }
         }
 
@@ -570,10 +613,12 @@ object ReadBookConfig {
                     bgTypeEInk = bgType
                     bgStrEInk = bg
                 }
+
                 AppConfig.isNightTheme -> {
                     bgTypeNight = bgType
                     bgStrNight = bg
                 }
+
                 else -> {
                     this.bgType = bgType
                     bgStr = bg
@@ -611,8 +656,13 @@ object ReadBookConfig {
                         val bitmap = BitmapUtils.decodeAssetsBitmap(appCtx, path, width, height)
                         BitmapDrawable(resources, bitmap?.resizeAndRecycle(width, height))
                     }
+
                     else -> {
-                        val bitmap = BitmapUtils.decodeBitmap(curBgStr(), width, height)
+                        val path = curBgStr().let {
+                            if (it.contains(File.separator)) it
+                            else FileUtils.getPath(appCtx.externalFiles, "bg", curBgStr())
+                        }
+                        val bitmap = BitmapUtils.decodeBitmap(path, width, height)
                         BitmapDrawable(resources, bitmap?.resizeAndRecycle(width, height))
                     }
                 }

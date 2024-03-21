@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.core.content.ContextCompat
+import io.legado.app.constant.AppLog
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.IntentAction
 import io.legado.app.data.appDb
@@ -12,8 +13,10 @@ import io.legado.app.help.config.AppConfig
 import io.legado.app.service.BaseReadAloudService
 import io.legado.app.service.HttpReadAloudService
 import io.legado.app.service.TTSReadAloudService
+import io.legado.app.utils.LogUtils
 import io.legado.app.utils.StringUtils
 import io.legado.app.utils.postEvent
+import io.legado.app.utils.toastOnUi
 import splitties.init.appCtx
 
 object ReadAloud {
@@ -51,7 +54,14 @@ object ReadAloud {
         intent.putExtra("play", play)
         intent.putExtra("pageIndex", pageIndex)
         intent.putExtra("startPos", startPos)
-        ContextCompat.startForegroundService(context, intent)
+        LogUtils.d("ReadAloud", intent.toString())
+        try {
+            ContextCompat.startForegroundService(context, intent)
+        } catch (e: Exception) {
+            val msg = "启动朗读服务出错\n${e.localizedMessage}"
+            AppLog.put(msg, e)
+            context.toastOnUi(msg)
+        }
     }
 
     fun playByEventBus(

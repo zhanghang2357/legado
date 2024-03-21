@@ -62,7 +62,7 @@ const getCover = (coverUrl) => {
 };
 
 const subJustify = computed(() =>
-  props.isSearch ? "space-between" : "flex-start"
+  props.isSearch ? "space-between" : "flex-start",
 );
 </script>
 
@@ -104,7 +104,8 @@ const subJustify = computed(() =>
         height: 112px;
         margin-left: 20px;
         flex: 1;
-
+        overflow: hidden;
+        
         .name {
           width: fit-content;
           font-size: 16px;

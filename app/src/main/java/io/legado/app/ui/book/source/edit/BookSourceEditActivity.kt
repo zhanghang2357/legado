@@ -1,11 +1,13 @@
 package io.legado.app.ui.book.source.edit
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.EditText
 import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.tabs.TabLayout
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
@@ -17,7 +19,6 @@ import io.legado.app.data.entities.BookSource
 import io.legado.app.data.entities.rule.BookInfoRule
 import io.legado.app.data.entities.rule.ContentRule
 import io.legado.app.data.entities.rule.ExploreRule
-import io.legado.app.data.entities.rule.ReviewRule
 import io.legado.app.data.entities.rule.SearchRule
 import io.legado.app.data.entities.rule.TocRule
 import io.legado.app.databinding.ActivityBookSourceEditBinding
@@ -68,7 +69,7 @@ class BookSourceEditActivity :
     private val infoEntities: ArrayList<EditEntity> = ArrayList()
     private val tocEntities: ArrayList<EditEntity> = ArrayList()
     private val contentEntities: ArrayList<EditEntity> = ArrayList()
-    private val reviewEntities: ArrayList<EditEntity> = ArrayList()
+//    private val reviewEntities: ArrayList<EditEntity> = ArrayList()
     private val qrCodeResult = registerForActivityResult(QrCodeResult()) {
         it ?: return@registerForActivityResult
         viewModel.importSource(it) { source ->
@@ -86,7 +87,7 @@ class BookSourceEditActivity :
     }
 
     private val softKeyboardTool by lazy {
-        KeyboardToolPop(this, this, binding.root, this)
+        KeyboardToolPop(this, lifecycleScope, binding.root, this)
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -118,7 +119,7 @@ class BookSourceEditActivity :
     override fun onCompatOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menu_save -> viewModel.save(getSource()) {
-                setResult(Activity.RESULT_OK)
+                setResult(Activity.RESULT_OK, Intent().putExtra("origin", it.bookSourceUrl))
                 finish()
             }
 
@@ -219,14 +220,14 @@ class BookSourceEditActivity :
     }
 
     private fun setEditEntities(tabPosition: Int?) {
-        when (tabPosition) {
-            1 -> adapter.editEntities = searchEntities
-            2 -> adapter.editEntities = exploreEntities
-            3 -> adapter.editEntities = infoEntities
-            4 -> adapter.editEntities = tocEntities
-            5 -> adapter.editEntities = contentEntities
-            6 -> adapter.editEntities = reviewEntities
-            else -> adapter.editEntities = sourceEntities
+        adapter.editEntities = when (tabPosition) {
+            1 -> searchEntities
+            2 -> exploreEntities
+            3 -> infoEntities
+            4 -> tocEntities
+            5 -> contentEntities
+//            6 -> reviewEntities
+            else -> sourceEntities
         }
         binding.recyclerView.scrollToPosition(0)
     }
@@ -340,20 +341,20 @@ class BookSourceEditActivity :
             add(EditEntity("payAction", cr.payAction, R.string.rule_pay_action))
         }
         // 段评
-        val rr = bs.getReviewRule()
-        reviewEntities.clear()
-        reviewEntities.apply {
-            add(EditEntity("reviewUrl", rr.reviewUrl, R.string.rule_review_url))
-            add(EditEntity("avatarRule", rr.avatarRule, R.string.rule_avatar))
-            add(EditEntity("contentRule", rr.contentRule, R.string.rule_review_content))
-            add(EditEntity("postTimeRule", rr.postTimeRule, R.string.rule_post_time))
-            add(EditEntity("reviewQuoteUrl", rr.reviewQuoteUrl, R.string.rule_review_quote))
-            add(EditEntity("voteUpUrl", rr.voteUpUrl, R.string.review_vote_up))
-            add(EditEntity("voteDownUrl", rr.voteDownUrl, R.string.review_vote_down))
-            add(EditEntity("postReviewUrl", rr.postReviewUrl, R.string.post_review_url))
-            add(EditEntity("postQuoteUrl", rr.postQuoteUrl, R.string.post_quote_url))
-            add(EditEntity("deleteUrl", rr.deleteUrl, R.string.delete_review_url))
-        }
+//        val rr = bs.getReviewRule()
+//        reviewEntities.clear()
+//        reviewEntities.apply {
+//            add(EditEntity("reviewUrl", rr.reviewUrl, R.string.rule_review_url))
+//            add(EditEntity("avatarRule", rr.avatarRule, R.string.rule_avatar))
+//            add(EditEntity("contentRule", rr.contentRule, R.string.rule_review_content))
+//            add(EditEntity("postTimeRule", rr.postTimeRule, R.string.rule_post_time))
+//            add(EditEntity("reviewQuoteUrl", rr.reviewQuoteUrl, R.string.rule_review_quote))
+//            add(EditEntity("voteUpUrl", rr.voteUpUrl, R.string.review_vote_up))
+//            add(EditEntity("voteDownUrl", rr.voteDownUrl, R.string.review_vote_down))
+//            add(EditEntity("postReviewUrl", rr.postReviewUrl, R.string.post_review_url))
+//            add(EditEntity("postQuoteUrl", rr.postQuoteUrl, R.string.post_quote_url))
+//            add(EditEntity("deleteUrl", rr.deleteUrl, R.string.delete_review_url))
+//        }
         binding.tabLayout.selectTab(binding.tabLayout.getTabAt(0))
         setEditEntities(0)
     }
@@ -374,7 +375,7 @@ class BookSourceEditActivity :
         val bookInfoRule = BookInfoRule()
         val tocRule = TocRule()
         val contentRule = ContentRule()
-        val reviewRule = ReviewRule()
+//        val reviewRule = ReviewRule()
         sourceEntities.forEach {
             when (it.key) {
                 "bookSourceUrl" -> source.bookSourceUrl = it.value ?: ""
@@ -409,8 +410,8 @@ class BookSourceEditActivity :
                 "intro" -> searchRule.intro =
                     viewModel.ruleComplete(it.value, searchRule.bookList)
 
-                "updateTime" -> searchRule.updateTime =
-                    viewModel.ruleComplete(it.value, searchRule.bookList)
+//                "updateTime" -> searchRule.updateTime =
+//                    viewModel.ruleComplete(it.value, searchRule.bookList)
 
                 "wordCount" -> searchRule.wordCount =
                     viewModel.ruleComplete(it.value, searchRule.bookList)
@@ -441,8 +442,8 @@ class BookSourceEditActivity :
                 "intro" -> exploreRule.intro =
                     viewModel.ruleComplete(it.value, exploreRule.bookList)
 
-                "updateTime" -> exploreRule.updateTime =
-                    viewModel.ruleComplete(it.value, exploreRule.bookList)
+//                "updateTime" -> exploreRule.updateTime =
+//                    viewModel.ruleComplete(it.value, exploreRule.bookList)
 
                 "wordCount" -> exploreRule.wordCount =
                     viewModel.ruleComplete(it.value, exploreRule.bookList)
@@ -470,8 +471,8 @@ class BookSourceEditActivity :
                 "intro" -> bookInfoRule.intro =
                     viewModel.ruleComplete(it.value, bookInfoRule.init)
 
-                "updateTime" -> bookInfoRule.updateTime =
-                    viewModel.ruleComplete(it.value, bookInfoRule.init)
+//                "updateTime" -> bookInfoRule.updateTime =
+//                    viewModel.ruleComplete(it.value, bookInfoRule.init)
 
                 "wordCount" -> bookInfoRule.wordCount =
                     viewModel.ruleComplete(it.value, bookInfoRule.init)
@@ -524,39 +525,39 @@ class BookSourceEditActivity :
                 "payAction" -> contentRule.payAction = it.value
             }
         }
-        reviewEntities.forEach {
-            when (it.key) {
-                "reviewUrl" -> reviewRule.reviewUrl = it.value
-                "avatarRule" -> reviewRule.avatarRule =
-                    viewModel.ruleComplete(it.value, reviewRule.reviewUrl, 3)
-
-                "contentRule" -> reviewRule.contentRule =
-                    viewModel.ruleComplete(it.value, reviewRule.reviewUrl)
-
-                "postTimeRule" -> reviewRule.postTimeRule =
-                    viewModel.ruleComplete(it.value, reviewRule.reviewUrl)
-
-                "reviewQuoteUrl" -> reviewRule.reviewQuoteUrl =
-                    viewModel.ruleComplete(it.value, reviewRule.reviewUrl, 2)
-
-                "voteUpUrl" -> reviewRule.voteUpUrl = it.value
-                "voteDownUrl" -> reviewRule.voteDownUrl = it.value
-                "postReviewUrl" -> reviewRule.postReviewUrl = it.value
-                "postQuoteUrl" -> reviewRule.postQuoteUrl = it.value
-                "deleteUrl" -> reviewRule.deleteUrl = it.value
-            }
-        }
+//        reviewEntities.forEach {
+//            when (it.key) {
+//                "reviewUrl" -> reviewRule.reviewUrl = it.value
+//                "avatarRule" -> reviewRule.avatarRule =
+//                    viewModel.ruleComplete(it.value, reviewRule.reviewUrl, 3)
+//
+//                "contentRule" -> reviewRule.contentRule =
+//                    viewModel.ruleComplete(it.value, reviewRule.reviewUrl)
+//
+//                "postTimeRule" -> reviewRule.postTimeRule =
+//                    viewModel.ruleComplete(it.value, reviewRule.reviewUrl)
+//
+//                "reviewQuoteUrl" -> reviewRule.reviewQuoteUrl =
+//                    viewModel.ruleComplete(it.value, reviewRule.reviewUrl, 2)
+//
+//                "voteUpUrl" -> reviewRule.voteUpUrl = it.value
+//                "voteDownUrl" -> reviewRule.voteDownUrl = it.value
+//                "postReviewUrl" -> reviewRule.postReviewUrl = it.value
+//                "postQuoteUrl" -> reviewRule.postQuoteUrl = it.value
+//                "deleteUrl" -> reviewRule.deleteUrl = it.value
+//            }
+//        }
         source.ruleSearch = searchRule
         source.ruleExplore = exploreRule
         source.ruleBookInfo = bookInfoRule
         source.ruleToc = tocRule
         source.ruleContent = contentRule
-        source.ruleReview = reviewRule
+//        source.ruleReview = reviewRule
         return source
     }
 
     private fun alertGroups() {
-        launch {
+        lifecycleScope.launch {
             val groups = withContext(IO) {
                 appDb.bookSourceDao.allGroups()
             }
@@ -628,7 +629,7 @@ class BookSourceEditActivity :
 
     private fun setSourceVariable() {
         viewModel.save(getSource()) { source ->
-            launch {
+            lifecycleScope.launch {
                 val comment =
                     source.getDisplayVariableComment("源变量可在js中通过source.getVariable()获取")
                 val variable = withContext(IO) { source.getVariable() }

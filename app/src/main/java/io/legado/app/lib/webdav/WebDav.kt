@@ -30,6 +30,7 @@ import java.net.URLEncoder
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
 
 @Suppress("unused", "MemberVisibilityCanBePrivate")
 open class WebDav(
@@ -97,6 +98,7 @@ open class WebDav(
             chain.proceed(request)
         }
         okHttpClient.newBuilder().run {
+            callTimeout(0, TimeUnit.SECONDS)
             interceptors().add(0, authInterceptor)
             addNetworkInterceptor(authInterceptor)
             build()
@@ -305,9 +307,16 @@ open class WebDav(
         localPath: String,
         contentType: String = "application/octet-stream"
     ) {
+        upload(File(localPath), contentType)
+    }
+
+    @Throws(WebDavException::class)
+    suspend fun upload(
+        file: File,
+        contentType: String = "application/octet-stream"
+    ) {
         kotlin.runCatching {
             withContext(IO) {
-                val file = File(localPath)
                 if (!file.exists()) throw WebDavException("文件不存在")
                 // 务必注意RequestBody不要嵌套，不然上传时内容可能会被追加多余的文件信息
                 val fileBody = file.asRequestBody(contentType.toMediaType())
